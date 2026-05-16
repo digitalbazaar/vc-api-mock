@@ -222,6 +222,18 @@ paths:
                 $ref: '#/components/schemas/VerificationResult'
         '400':
           $ref: '#/components/responses/InvalidInput'
+        '413':
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 
   /presentations/{id}:
     get:
@@ -359,12 +371,12 @@ paths:
         '400':
           $ref: '#/components/responses/InvalidInput'
 
-  /workflows/{workflowId}:
+  /workflows/{localWorkflowId}:
     get:
       tags: [workflows]
       summary: Retrieve a workflow configuration
       parameters:
-        - $ref: '#/components/parameters/workflowId'
+        - $ref: '#/components/parameters/localWorkflowId'
       responses:
         '200':
           description: Workflow configuration
@@ -375,12 +387,12 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /workflows/{workflowId}/exchanges:
+  /workflows/{localWorkflowId}/exchanges:
     post:
       tags: [workflows]
       summary: Create an exchange within a workflow
       parameters:
-        - $ref: '#/components/parameters/workflowId'
+        - $ref: '#/components/parameters/localWorkflowId'
       requestBody:
         required: false
         content:
@@ -404,13 +416,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /workflows/{workflowId}/exchanges/{exchangeId}:
+  /workflows/{localWorkflowId}/exchanges/{localExchangeId}:
     get:
       tags: [workflows]
       summary: Get exchange state
       parameters:
-        - $ref: '#/components/parameters/workflowId'
-        - $ref: '#/components/parameters/exchangeId'
+        - $ref: '#/components/parameters/localWorkflowId'
+        - $ref: '#/components/parameters/localExchangeId'
       responses:
         '200':
           description: Exchange state
@@ -432,8 +444,8 @@ paths:
 
         Exchange state transitions: pending → active → complete | invalid
       parameters:
-        - $ref: '#/components/parameters/workflowId'
-        - $ref: '#/components/parameters/exchangeId'
+        - $ref: '#/components/parameters/localWorkflowId'
+        - $ref: '#/components/parameters/localExchangeId'
       requestBody:
         required: false
         content:
@@ -452,13 +464,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /workflows/{workflowId}/exchanges/{exchangeId}/protocols:
+  /workflows/{localWorkflowId}/exchanges/{localExchangeId}/protocols:
     get:
       tags: [workflows]
       summary: Get supported protocol URLs for an exchange
       parameters:
-        - $ref: '#/components/parameters/workflowId'
-        - $ref: '#/components/parameters/exchangeId'
+        - $ref: '#/components/parameters/localWorkflowId'
+        - $ref: '#/components/parameters/localExchangeId'
       responses:
         '200':
           description: Protocol URLs
@@ -535,14 +547,14 @@ components:
       required: true
       schema:
         type: string
-    workflowId:
-      name: workflowId
+    localWorkflowId:
+      name: localWorkflowId
       in: path
       required: true
       schema:
         type: string
-    exchangeId:
-      name: exchangeId
+    localExchangeId:
+      name: localExchangeId
       in: path
       required: true
       schema:
