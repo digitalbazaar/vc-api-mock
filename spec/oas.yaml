@@ -1,0 +1,844 @@
+openapi: 3.0.3
+info:
+  title: VCALM Mock API
+  description: >
+    Mock implementation of the Verifiable Credential API Lifecycle Management
+    (VCALM) HTTP API. This spec documents the contract implemented by this
+    mock server. It is derived from the VCALM work-in-progress specification
+    at Digital Bazaar and the W3C VC API community group.
+  version: 1.0.0
+
+tags:
+  - name: credentials
+    description: Credential issuance, verification, derivation, and management
+  - name: presentations
+    description: Presentation creation and verification
+  - name: status
+    description: Credential status and status list management
+  - name: challenges
+    description: Single-use challenge nonces for replay protection
+  - name: workflows
+    description: Workflow and exchange lifecycle management
+  - name: interactions
+    description: Interaction protocol discovery
+
+paths:
+
+  # ---------------------------------------------------------------------------
+  # Credentials
+  # ---------------------------------------------------------------------------
+
+  /credentials/issue:
+    post:
+      tags: [credentials]
+      summary: Issue a verifiable credential
+      description: >
+        Adds a mock proof to the provided credential and stores it.
+        The stored mandatory pointers are used later by /credentials/derive.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueCredentialRequest'
+      responses:
+        '201':
+          description: Credential issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifiableCredential'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+
+  /credentials/verify:
+    post:
+      tags: [credentials]
+      summary: Verify a verifiable credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyCredentialRequest'
+      responses:
+        '200':
+          description: Verification result (200 even when verified:false)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+
+  /credentials/derive:
+    post:
+      tags: [credentials]
+      summary: Derive a credential with selective disclosure
+      description: >
+        Returns a derived credential containing only the requested
+        selectivePointers. All spec-level mandatory pointers (@context, type,
+        issuer, validFrom) and any issuer-specified mandatoryPointers must be
+        included in selectivePointers or a 400 is returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeriveCredentialRequest'
+      responses:
+        '201':
+          description: Derived credential
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifiableCredential'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+
+  /credentials/status:
+    post:
+      tags: [credentials, status]
+      summary: Update a credential's status
+      description: >
+        Attaches or updates the credentialStatus field on a stored credential.
+        The credential must have been previously issued via /credentials/issue.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStatusRequest'
+      responses:
+        '200':
+          description: Status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /credentials/{id}:
+    get:
+      tags: [credentials]
+      summary: Retrieve a stored credential by ID
+      parameters:
+        - $ref: '#/components/parameters/credentialId'
+      responses:
+        '200':
+          description: The verifiable credential
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifiableCredential'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [credentials]
+      summary: Soft-delete a credential
+      parameters:
+        - $ref: '#/components/parameters/credentialId'
+      responses:
+        '202':
+          description: Credential accepted for deletion
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Presentations
+  # ---------------------------------------------------------------------------
+
+  /presentations:
+    get:
+      tags: [presentations]
+      summary: List stored presentations
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [presentations, verifiablepresentations]
+      responses:
+        '200':
+          description: Array of presentations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VerifiablePresentation'
+    post:
+      tags: [presentations]
+      summary: Create a verifiable presentation
+      description: >
+        Adds a mock proof to the provided presentation. If options.challenge
+        or options.domain are provided they are embedded in the proof for
+        later verification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePresentationRequest'
+      responses:
+        '201':
+          description: Presentation created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [verifiablePresentation]
+                properties:
+                  verifiablePresentation:
+                    $ref: '#/components/schemas/VerifiablePresentation'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+
+  /presentations/verify:
+    post:
+      tags: [presentations]
+      summary: Verify a presentation
+      description: >
+        Returns 200 in all cases — the body contains verified:true/false.
+        If options.challenge is provided it must match the proof and is
+        consumed (single-use). If the presentation has a holder field but
+        no proof, a warning is logged and verification proceeds on enclosed
+        credentials only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyPresentationRequest'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+
+  /presentations/{id}:
+    get:
+      tags: [presentations]
+      summary: Retrieve a stored presentation
+      parameters:
+        - $ref: '#/components/parameters/presentationId'
+      responses:
+        '200':
+          description: The presentation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifiablePresentation'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [presentations]
+      summary: Soft-delete a presentation
+      parameters:
+        - $ref: '#/components/parameters/presentationId'
+      responses:
+        '202':
+          description: Accepted for deletion
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Challenges
+  # ---------------------------------------------------------------------------
+
+  /challenges:
+    post:
+      tags: [challenges]
+      summary: Issue a single-use challenge nonce
+      description: >
+        Returns a UUID nonce with a 5-minute TTL. The nonce is consumed on
+        first use at /presentations/verify. Reuse returns 400.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Challenge issued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [challenge]
+                properties:
+                  challenge:
+                    type: string
+                    description: Single-use nonce
+
+  # ---------------------------------------------------------------------------
+  # Status lists
+  # ---------------------------------------------------------------------------
+
+  /status-lists:
+    post:
+      tags: [status]
+      summary: Create a StatusList2021 credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStatusListRequest'
+      responses:
+        '201':
+          description: Status list created
+          headers:
+            Location:
+              description: URL of the created status list
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, verifiableCredential]
+                properties:
+                  id:
+                    type: string
+                  verifiableCredential:
+                    $ref: '#/components/schemas/VerifiableCredential'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+
+  /status-lists/{id}:
+    get:
+      tags: [status]
+      summary: Retrieve a status list credential (public, no auth)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The status list credential
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifiableCredential'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Workflows
+  # ---------------------------------------------------------------------------
+
+  /workflows:
+    post:
+      tags: [workflows]
+      summary: Create a workflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowConfig'
+      responses:
+        '201':
+          description: Workflow created
+          headers:
+            Location:
+              description: URL of the created workflow
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+
+  /workflows/{workflowId}:
+    get:
+      tags: [workflows]
+      summary: Retrieve a workflow configuration
+      parameters:
+        - $ref: '#/components/parameters/workflowId'
+      responses:
+        '200':
+          description: Workflow configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowConfig'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workflows/{workflowId}/exchanges:
+    post:
+      tags: [workflows]
+      summary: Create an exchange within a workflow
+      parameters:
+        - $ref: '#/components/parameters/workflowId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expires:
+                  type: string
+                  format: date-time
+                variables:
+                  type: object
+      responses:
+        '201':
+          description: Exchange created
+          headers:
+            Location:
+              description: URL of the created exchange
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workflows/{workflowId}/exchanges/{exchangeId}:
+    get:
+      tags: [workflows]
+      summary: Get exchange state
+      parameters:
+        - $ref: '#/components/parameters/workflowId'
+        - $ref: '#/components/parameters/exchangeId'
+      responses:
+        '200':
+          description: Exchange state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeState'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [workflows]
+      summary: Participate in an exchange
+      description: >
+        The state machine entry point. Client sends one of:
+        - Empty object → server returns VPR for current step
+        - verifiablePresentation → server validates, advances step, returns
+          next VPR, an issued VC, or empty body (complete)
+        - redirectUrl → always rejected with 400
+
+        Exchange state transitions: pending → active → complete | invalid
+      parameters:
+        - $ref: '#/components/parameters/workflowId'
+        - $ref: '#/components/parameters/exchangeId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeMessage'
+      responses:
+        '200':
+          description: Exchange response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workflows/{workflowId}/exchanges/{exchangeId}/protocols:
+    get:
+      tags: [workflows]
+      summary: Get supported protocol URLs for an exchange
+      parameters:
+        - $ref: '#/components/parameters/workflowId'
+        - $ref: '#/components/parameters/exchangeId'
+      responses:
+        '200':
+          description: Protocol URLs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [protocols]
+                properties:
+                  protocols:
+                    type: object
+                    properties:
+                      vcapi:
+                        type: string
+                        format: uri
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Interactions
+  # ---------------------------------------------------------------------------
+
+  /interactions/{interactionId}:
+    get:
+      tags: [interactions]
+      summary: Get interaction protocols
+      parameters:
+        - name: interactionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: iuv
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ['1']
+          description: Interaction URI version — must be '1'
+      responses:
+        '200':
+          description: Protocols object
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [protocols]
+                properties:
+                  protocols:
+                    type: object
+                    properties:
+                      vcapi:
+                        type: string
+                        format: uri
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+
+# ---------------------------------------------------------------------------
+# Components
+# ---------------------------------------------------------------------------
+
+components:
+
+  parameters:
+    credentialId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    presentationId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    workflowId:
+      name: workflowId
+      in: path
+      required: true
+      schema:
+        type: string
+    exchangeId:
+      name: exchangeId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    InvalidInput:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+  schemas:
+
+    Proof:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          example: DataIntegrityProof
+        cryptosuite:
+          type: string
+          example: eddsa-rdfc-2022
+        verificationMethod:
+          type: string
+        created:
+          type: string
+          format: date-time
+        proofPurpose:
+          type: string
+        proofValue:
+          type: string
+        challenge:
+          type: string
+        domain:
+          type: string
+
+    VerifiableCredential:
+      type: object
+      required: [type, issuer]
+      properties:
+        '@context':
+          type: array
+          items:
+            type: string
+        id:
+          type: string
+        type:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        issuer:
+          oneOf:
+            - type: string
+            - type: object
+        validFrom:
+          type: string
+          format: date-time
+        issued:
+          type: string
+          format: date-time
+        credentialSubject:
+          type: object
+        credentialStatus:
+          type: object
+        proof:
+          $ref: '#/components/schemas/Proof'
+
+    VerifiablePresentation:
+      type: object
+      required: [type]
+      properties:
+        '@context':
+          type: array
+          items:
+            type: string
+        id:
+          type: string
+        type:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        holder:
+          type: string
+        verifiableCredential:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifiableCredential'
+        proof:
+          $ref: '#/components/schemas/Proof'
+
+    ProblemDetails:
+      type: object
+      required: [type, title, status, detail]
+      properties:
+        type:
+          type: string
+          format: uri
+          example: https://vcalm.example/errors#invalid-input
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+
+    VerificationResult:
+      type: object
+      required: [verified]
+      properties:
+        verified:
+          type: boolean
+        results:
+          type: array
+          items:
+            type: object
+
+    IssueCredentialRequest:
+      type: object
+      required: [credential]
+      properties:
+        credential:
+          $ref: '#/components/schemas/VerifiableCredential'
+        options:
+          type: object
+          properties:
+            credentialId:
+              type: string
+            mandatoryPointers:
+              type: array
+              items:
+                type: string
+
+    VerifyCredentialRequest:
+      type: object
+      required: [verifiableCredential]
+      properties:
+        verifiableCredential:
+          $ref: '#/components/schemas/VerifiableCredential'
+
+    DeriveCredentialRequest:
+      type: object
+      required: [verifiableCredential]
+      properties:
+        verifiableCredential:
+          $ref: '#/components/schemas/VerifiableCredential'
+        options:
+          type: object
+          properties:
+            credentialId:
+              type: string
+            selectivePointers:
+              type: array
+              items:
+                type: string
+
+    UpdateStatusRequest:
+      type: object
+      required: [credentialId, credentialStatus]
+      properties:
+        credentialId:
+          type: string
+        credentialStatus:
+          type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+            statusPurpose:
+              type: string
+            statusListIndex:
+              type: string
+            statusListCredential:
+              type: string
+
+    CreatePresentationRequest:
+      type: object
+      required: [presentation]
+      properties:
+        presentation:
+          $ref: '#/components/schemas/VerifiablePresentation'
+        options:
+          type: object
+          properties:
+            challenge:
+              type: string
+            domain:
+              type: string
+
+    VerifyPresentationRequest:
+      type: object
+      properties:
+        verifiablePresentation:
+          $ref: '#/components/schemas/VerifiablePresentation'
+        presentation:
+          $ref: '#/components/schemas/VerifiablePresentation'
+        options:
+          type: object
+          properties:
+            challenge:
+              type: string
+            domain:
+              type: string
+
+    CreateStatusListRequest:
+      type: object
+      required: [statusPurpose]
+      properties:
+        statusPurpose:
+          type: string
+          example: revocation
+        id:
+          type: string
+          format: uri
+        options:
+          type: object
+
+    WorkflowStep:
+      type: object
+      properties:
+        verifiablePresentationRequest:
+          type: object
+        issueRequests:
+          type: array
+          items:
+            type: string
+        nextStep:
+          type: string
+
+    WorkflowConfig:
+      type: object
+      required: [initialStep, steps]
+      properties:
+        id:
+          type: string
+        initialStep:
+          type: string
+        steps:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/WorkflowStep'
+        credentialTemplates:
+          type: array
+          items:
+            type: object
+
+    ExchangeState:
+      type: object
+      required: [id, workflowId, sequence, step, state]
+      properties:
+        id:
+          type: string
+        workflowId:
+          type: string
+        sequence:
+          type: integer
+        step:
+          type: string
+        state:
+          type: string
+          enum: [pending, active, complete, invalid]
+        expires:
+          type: string
+          nullable: true
+        variables:
+          type: object
+        lastError:
+          type: object
+          nullable: true
+
+    ExchangeMessage:
+      type: object
+      properties:
+        verifiablePresentation:
+          $ref: '#/components/schemas/VerifiablePresentation'
+        redirectUrl:
+          type: string
+          description: >
+            Not supported. Sending this field always returns 400.
+
+    ExchangeResponse:
+      type: object
+      properties:
+        verifiablePresentationRequest:
+          type: object
+        verifiablePresentation:
+          $ref: '#/components/schemas/VerifiablePresentation'
