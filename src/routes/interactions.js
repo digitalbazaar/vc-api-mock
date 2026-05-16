@@ -1,3 +1,5 @@
+import {randomUUID} from 'node:crypto';
+
 import {problemDetails} from '../middleware/problemDetails.js';
 import {Router} from 'express';
 
@@ -11,7 +13,7 @@ export function interactionsRouter(store) {
 
   // POST /challenges
   router.post('/challenges', (_req, res) => {
-    const nonce = crypto.randomUUID();
+    const nonce = randomUUID();
     const TTL_MS = 5 * 60 * 1000; // 5 minutes
     store.challenges.set(nonce, {expires: Date.now() + TTL_MS});
     return res.status(201).json({challenge: nonce});
