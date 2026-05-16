@@ -63,6 +63,8 @@ curl -X POST http://localhost:3000/credentials/derive \
 
 ## Endpoints
 
+### Credentials
+
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/credentials/issue` | Issue a credential with a mock proof |
@@ -71,21 +73,45 @@ curl -X POST http://localhost:3000/credentials/derive \
 | POST | `/credentials/status` | Update a credential's status |
 | GET | `/credentials/:id` | Retrieve a stored credential |
 | DELETE | `/credentials/:id` | Soft-delete a credential |
+
+### Presentations
+
+| Method | Path | Description |
+|--------|------|-------------|
 | POST | `/presentations` | Create a presentation |
 | POST | `/presentations/verify` | Verify a presentation |
 | GET | `/presentations` | List stored presentations |
 | GET | `/presentations/:id` | Retrieve a presentation |
 | DELETE | `/presentations/:id` | Soft-delete a presentation |
+
+### Challenges & Status Lists
+
+| Method | Path | Description |
+|--------|------|-------------|
 | POST | `/challenges` | Issue a single-use nonce |
 | POST | `/status-lists` | Create a StatusList2021 credential |
-| GET | `/status-lists/:id` | Retrieve a status list (public) |
+| GET | `/status-lists/:id` | Retrieve a status list (public, no auth) |
+
+### Workflows & Exchanges
+
+Exchanges are stateful. State transitions: `pending → active → complete` (or
+`invalid` on error). See [Design Notes](#design-notes) for the full state
+machine.
+
+| Method | Path | Description |
+|--------|------|-------------|
 | POST | `/workflows` | Create a workflow |
 | GET | `/workflows/:id` | Retrieve a workflow |
 | POST | `/workflows/:id/exchanges` | Create an exchange |
 | GET | `/workflows/:id/exchanges/:id` | Get exchange state |
 | POST | `/workflows/:id/exchanges/:id` | Participate in an exchange |
-| GET | `/workflows/:id/exchanges/:id/protocols` | Get protocol URLs |
-| GET | `/interactions/:id?iuv=1` | Get interaction protocols |
+| GET | `/workflows/:id/exchanges/:id/protocols` | Get supported protocol URLs |
+
+### Interactions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/interactions/:id?iuv=1` | Get interaction protocols (`iuv=1` required) |
 
 ## Options
 
@@ -105,6 +131,8 @@ To run the conformance suite against a real VCALM server:
 ```sh
 VCALM_BASE_URL=https://your-server.example npm run test:conformance
 ```
+
+The full OpenAPI 3.0 spec is at [`spec/oas.yaml`](spec/oas.yaml).
 
 ## Design Notes
 
