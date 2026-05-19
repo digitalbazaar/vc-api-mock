@@ -127,6 +127,22 @@ Each step is triggered when the user wants more access. Privacy is preserved bec
 | `Ed25519Signature2020` | Ed25519 | No | Most common; fast, small signatures |
 | `eddsa-rdfc-2022` | Ed25519 / Ed448 | No | Newer RDF canonicalization variant |
 | `ecdsa-rdfc-2019` | P-256 / P-384 | No | Required for some government/enterprise contexts |
-| `bbs-2023` | BBS+ (BLS12-381) | Yes | Required for `/presentations/derive` |
+| `ecdsa-sd-2023` | P-256 | Yes (linkable) | ECDSA-based selective disclosure via JSON Pointers; requires `/presentations/derive` |
+| `bbs-2023` | BBS+ (BLS12-381) | Yes (unlinkable) | Unlinkable selective disclosure; required for privacy-preserving `/presentations/derive` |
 
-> **Important:** Only `bbs-2023` supports selective disclosure. All other suites require the full credential to be presented.
+> **Important:** Both `ecdsa-sd-2023` and `bbs-2023` support selective disclosure and require `POST /presentations/derive` to generate a derived (holder) proof. The key difference is **linkability**: `ecdsa-sd-2023` derived proofs are linkable (each disclosure uses the same base signature and public key, so multiple presentations of the same credential can be correlated), while `bbs-2023` derived proofs are unlinkable (each presentation is cryptographically independent). Use `ecdsa-sd-2023` when you need ECDSA compatibility (e.g., government or enterprise environments that mandate P-256 keys) and linkability is acceptable. Use `bbs-2023` when holder privacy and unlinkability are the primary concern.
+
+### How `ecdsa-sd-2023` Selective Disclosure Works
+
+`ecdsa-sd-2023` implements selective disclosure using a two-phase proof model defined in the [W3C VC Data Integrity ECDSA specification](https://w3c.github.io/vc-di-ecdsa/#selective-disclosure-functions):
+
+1. **Base proof (issuer → holder):** The issuer signs the credential with a long-term key and also generates a per-proof ephemeral P-256 key pair. The issuer signs each individual statement (N-Quad) in the credential with the ephemeral private key, producing a separate signature per statement. Mandatory claims (specified via JSON Pointers) are hashed together; the rest remain individually signed but undisclosed. The base proof is given only to the holder — it is never sent to a verifier.
+
+2. **Derived proof (holder → verifier):** The holder calls `POST /presentations/derive`, supplying the base proof and a set of JSON Pointers indicating which additional (non-mandatory) claims to reveal. The derived proof includes only the signatures for the selected statements, a label map (mapping canonical blank node IDs to HMAC-randomized IDs), and the mandatory claim indexes. The verifier receives only the revealed claims and can independently verify each statement's signature and the mandatory claim hash.
+
+**Key technical properties:**
+- Uses **HMAC-based blank node relabeling** to prevent information leakage from blank node ordering
+- Mandatory claims are always disclosed; selective claims are opt-in by the holder
+- Proof values are CBOR-encoded and Multibase (base64url-no-pad) encoded
+- Canonicalization uses RDF Dataset Canonicalization (RDFC-1.0) with SHA-256
+- Does **not** provide unlinkable disclosure — see `bbs-2023` if unlinkability is required
