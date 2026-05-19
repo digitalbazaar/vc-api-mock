@@ -1,0 +1,45 @@
+{
+  "name": "vc-api-mock",
+  "version": "1.0.0",
+  "description": "Mock VCALM server and test suite for the W3C Verifiable Credential API Lifecycle Management spec",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "mocha --recursive 'test/**/*.test.js'",
+    "test:conformance": "mocha --no-config 'test/conformance/conformance.test.js'",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test"
+  },
+  "keywords": [
+    "vcalm",
+    "verifiable-credentials",
+    "vc-api",
+    "mock",
+    "w3c"
+  ],
+  "author": "",
+  "license": "W3C-20150513",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@digitalbazaar/eslint-config": "^8.0.1",
+    "@readme/openapi-parser": "^6.1.1",
+    "@types/chai": "^5.2.3",
+    "@types/express": "^5.0.6",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.8.0",
+    "@types/sinon": "^21.0.1",
+    "@types/supertest": "^7.2.0",
+    "chai": "^6.2.2",
+    "eslint": "^9.39.4",
+    "mocha": "^11.7.5",
+    "sinon": "^22.0.0",
+    "supertest": "^7.2.2",
+    "typescript": "^6.0.3"
+  }
+}
