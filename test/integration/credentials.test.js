@@ -34,44 +34,64 @@ describe('POST /credentials/issue', () => {
   const invalidInputCases = [
     {
       label: 'missing @context',
-      mutate: c => { delete c['@context']; }
+      mutate: c => {
+        delete c['@context'];
+      }
     },
     {
       label: '@context not an array',
-      mutate: c => { c['@context'] = 4; }
+      mutate: c => {
+        c['@context'] = 4;
+      }
     },
     {
       label: '@context item not a string',
-      mutate: c => { c['@context'] = [{foo: true}]; }
+      mutate: c => {
+        c['@context'] = [{foo: true}];
+      }
     },
     {
       label: 'missing type',
-      mutate: c => { delete c.type; }
+      mutate: c => {
+        delete c.type;
+      }
     },
     {
       label: 'type not an array',
-      mutate: c => { c.type = 4; }
+      mutate: c => {
+        c.type = 4;
+      }
     },
     {
       label: 'type item not a string',
-      mutate: c => { c.type = [null]; }
+      mutate: c => {
+        c.type = [null];
+      }
     },
     {
       label: 'missing issuer',
-      mutate: c => { delete c.issuer; }
+      mutate: c => {
+        delete c.issuer;
+      }
     },
     {
       label: 'issuer invalid type',
-      mutate: c => { c.issuer = 4; }
+      mutate: c => {
+        c.issuer = 4;
+      }
     },
     {
       label: 'missing credentialSubject',
-      mutate: c => { delete c.credentialSubject; }
+      mutate: c => {
+        delete c.credentialSubject;
+      }
     },
     {
       label: 'credentialSubject not an object',
-      mutate: c => { c.credentialSubject = 'did:example:1234'; }
-    },
+      mutate: c => {
+        c.credentialSubject = 'did:example:1234';
+      }
+    }
   ];
 
   for(const {label, mutate} of invalidInputCases) {
@@ -87,7 +107,8 @@ describe('POST /credentials/issue', () => {
   }
 
   it('should return 201 when credential has expirationDate', async () => {
-    const credential = /** @type {Record<string, any>} */ (unsignedCredential());
+    const cred = unsignedCredential();
+    const credential = /** @type {Record<string, any>} */ (cred);
     credential.expirationDate =
       new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
         .replace(/\.\d+Z$/, 'Z');
