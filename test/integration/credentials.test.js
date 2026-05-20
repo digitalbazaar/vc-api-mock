@@ -29,6 +29,74 @@ describe('POST /credentials/issue', () => {
     assert.ok(res.body.type.includes('invalid-input'));
   });
 
+  // vc-api-issuer-test-suite conformance checks
+  /** @type {Array<{label: string, mutate: (c: Record<string, any>) => void}>} */
+  const invalidInputCases = [
+    {
+      label: 'missing @context',
+      mutate: c => { delete c['@context']; }
+    },
+    {
+      label: '@context not an array',
+      mutate: c => { c['@context'] = 4; }
+    },
+    {
+      label: '@context item not a string',
+      mutate: c => { c['@context'] = [{foo: true}]; }
+    },
+    {
+      label: 'missing type',
+      mutate: c => { delete c.type; }
+    },
+    {
+      label: 'type not an array',
+      mutate: c => { c.type = 4; }
+    },
+    {
+      label: 'type item not a string',
+      mutate: c => { c.type = [null]; }
+    },
+    {
+      label: 'missing issuer',
+      mutate: c => { delete c.issuer; }
+    },
+    {
+      label: 'issuer invalid type',
+      mutate: c => { c.issuer = 4; }
+    },
+    {
+      label: 'missing credentialSubject',
+      mutate: c => { delete c.credentialSubject; }
+    },
+    {
+      label: 'credentialSubject not an object',
+      mutate: c => { c.credentialSubject = 'did:example:1234'; }
+    },
+  ];
+
+  for(const {label, mutate} of invalidInputCases) {
+    it(`should return 400 when credential has ${label}`, async () => {
+      const credential = unsignedCredential();
+      mutate(credential);
+      const res = await request(app)
+        .post('/credentials/issue')
+        .send({credential});
+      assert.equal(res.status, 400, `Expected 400 for: ${label}`);
+      assert.ok(res.body.type.includes('invalid-input'));
+    });
+  }
+
+  it('should return 201 when credential has expirationDate', async () => {
+    const credential = /** @type {Record<string, any>} */ (unsignedCredential());
+    credential.expirationDate =
+      new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+        .replace(/\.\d+Z$/, 'Z');
+    const res = await request(app)
+      .post('/credentials/issue')
+      .send({credential});
+    assert.equal(res.status, 201);
+  });
+
   it('should store the credential by credentialId option', async () => {
     const credentialId = 'test-cred-123';
     await request(app)
