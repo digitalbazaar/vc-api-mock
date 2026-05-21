@@ -7,6 +7,42 @@ import {Router} from 'express';
 /** @typedef {import('../types.js').VerifiableCredential} VerifiableCredential */
 
 /**
+ * Validates required credential fields per the VC-API issuer test suite.
+ * Returns an error message string, or null if valid.
+ *
+ * @param {Record<string, any>} credential
+ * @returns {string | null}
+ */
+function validateCredentialFields(credential) {
+  if(!Array.isArray(credential['@context'])) {
+    return 'credential "@context" must be an array.';
+  }
+  if(!credential['@context'].every(item => typeof item === 'string')) {
+    return 'credential "@context" items must be strings.';
+  }
+  if(!Array.isArray(credential.type)) {
+    return 'credential "type" must be an array.';
+  }
+  if(!credential.type.every(item => typeof item === 'string')) {
+    return 'credential "type" items must be strings.';
+  }
+  if(credential.issuer === undefined || credential.issuer === null) {
+    return 'credential must have property "issuer".';
+  }
+  if(typeof credential.issuer !== 'string' &&
+    (typeof credential.issuer !== 'object' ||
+      Array.isArray(credential.issuer))) {
+    return 'credential "issuer" must be a string or an object.';
+  }
+  if(!credential.credentialSubject ||
+    typeof credential.credentialSubject !== 'object' ||
+    Array.isArray(credential.credentialSubject)) {
+    return 'credential "credentialSubject" must be an object.';
+  }
+  return null;
+}
+
+/**
  * @param {import('../store/index.js').createStore extends
  *   (...args: any[]) => infer R ? R : never} store
  * @returns {Router}
@@ -22,6 +58,13 @@ export function credentialsRouter(store) {
         problemDetails(
           'invalid-input', 'Invalid Input', 400,
           'Request body must include a credential property.')
+      );
+    }
+
+    const invalid = validateCredentialFields(credential);
+    if(invalid) {
+      return res.status(400).json(
+        problemDetails('invalid-input', 'Invalid Input', 400, invalid)
       );
     }
 
